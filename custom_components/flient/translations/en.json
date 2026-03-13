@@ -1,0 +1,28 @@
+{
+  "config": {
+    "step": {
+      "pick_implementation": {
+        "title": "Flient Smart Lock"
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to Flient",
+      "invalid_auth": "Authentication failed",
+      "unknown": "Unknown error"
+    },
+    "abort": {
+      "already_configured": "This account is already configured",
+      "authorize_url_timeout": "Timeout generating authorize URL",
+      "missing_configuration": "Flient integration is not configured",
+      "no_url_available": "No URL available. Check your Home Assistant configuration",
+      "oauth_error": "Unexpected error while receiving token",
+      "oauth_failed": "Error retrieving access token",
+      "oauth_timeout": "Timeout retrieving access token",
+      "oauth_unauthorized": "Authorization error while retrieving access token",
+      "reauth_successful": "Re-authentication successful"
+    },
+    "create_entry": {
+      "default": "Successfully authenticated with Flient"
+    }
+  }
+}
