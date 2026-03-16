@@ -4,4 +4,4 @@ DOMAIN = "flient"
 
 API_BASE_URL = "https://api.flient.net/api"
 
-SCAN_INTERVAL_SECONDS = 30
+SCAN_INTERVAL_SECONDS = 120  # 2 minutes to avoid rate limits with many locks

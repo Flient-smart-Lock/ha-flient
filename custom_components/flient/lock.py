@@ -70,8 +70,21 @@ class FlientLock(CoordinatorEntity[FlientCoordinator], LockEntity):
         state = lock_data.get("state")
         if state is not None:
             # Flient API: 0 = locked, 1 = unlocked, 2 = unknown
+            if state == 2:
+                return self._attr_is_locked
             return state == 0
         return self._attr_is_locked
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return extra state attributes."""
+        lock_data = self.coordinator.data.get(self._lock_id, {})
+        attrs = {}
+        auto_lock = lock_data.get("auto_lock_time")
+        if auto_lock is not None:
+            attrs["auto_lock_time"] = auto_lock
+            attrs["auto_lock_enabled"] = auto_lock > 0
+        return attrs
 
     @property
     def is_locking(self) -> bool:
