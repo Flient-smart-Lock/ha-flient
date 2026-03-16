@@ -91,9 +91,7 @@ class FlientLock(CoordinatorEntity[FlientCoordinator], LockEntity):
         self._is_locking = True
         self.async_write_ha_state()
 
-        success = await self.coordinator.api.hub_lock_unlock(
-            self._lock_id, "lock"
-        )
+        success = await self.coordinator.api.lock(self._lock_id)
 
         self._is_locking = False
         if success:
@@ -107,9 +105,7 @@ class FlientLock(CoordinatorEntity[FlientCoordinator], LockEntity):
         self._is_unlocking = True
         self.async_write_ha_state()
 
-        success = await self.coordinator.api.hub_lock_unlock(
-            self._lock_id, "unlock"
-        )
+        success = await self.coordinator.api.unlock(self._lock_id)
 
         self._is_unlocking = False
         if success:
