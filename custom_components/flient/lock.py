@@ -36,7 +36,6 @@ class FlientLock(CoordinatorEntity[FlientCoordinator], LockEntity):
     """Representation of a Flient Smart Lock."""
 
     _attr_has_entity_name = True
-    _attr_supported_features = LockEntityFeature(0)
 
     def __init__(
         self,
@@ -71,8 +70,6 @@ class FlientLock(CoordinatorEntity[FlientCoordinator], LockEntity):
         state = lock_data.get("state")
         if state is not None:
             # Flient API: 0 = locked, 1 = unlocked, 2 = unknown
-            if state == 2:
-                return None
             return state == 0
         return self._attr_is_locked
 
