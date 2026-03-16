@@ -24,8 +24,8 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS: list[Platform] = [Platform.LOCK, Platform.SENSOR]
 
 
-async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Set up the Flient component."""
+def _register_oauth2(hass: HomeAssistant) -> None:
+    """Register OAuth2 implementation if not already registered."""
     config_entry_oauth2_flow.async_register_implementation(
         hass,
         DOMAIN,
@@ -38,11 +38,19 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             token_url=OAUTH2_TOKEN,
         ),
     )
+
+
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Set up the Flient component."""
+    _register_oauth2(hass)
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Flient from a config entry."""
+    # Ensure OAuth2 is registered (async_setup may not have been called)
+    _register_oauth2(hass)
+
     implementation = await config_entry_oauth2_flow.async_get_config_entry_implementation(
         hass, entry
     )
