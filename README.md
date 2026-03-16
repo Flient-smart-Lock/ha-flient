@@ -27,7 +27,7 @@ Bedien je Flient smart locks via Home Assistant. Ondersteunt openen, sluiten en 
 
 ## Functies
 
-- 🔒 **Slot vergrendelen/ontgrendelen** — via Flient Hub (cloud)
+- 🔒 **Slot vergrendelen/ontgrendelen** — via Flient Hub
 - 🔋 **Batterijstatus** — percentage per slot
 - 🔄 **Automatische updates** — status wordt elke 30 seconden bijgewerkt
 
