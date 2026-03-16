@@ -96,10 +96,12 @@ class FlientApi:
             return False
         return True
 
-    async def register_webhook(self, webhook_url: str) -> bool:
-        """Register webhook URL with Flient backend."""
-        resp = await self._request("POST", "ha/webhook/register", data={"webhook_url": webhook_url})
-        return resp.get("status") == 1
+    async def get_events(self, since: int = 60) -> list[dict[str, Any]]:
+        """Get recent lock events."""
+        resp = await self._request("GET", f"ha/events?since={since}")
+        if resp.get("status") != 1:
+            return []
+        return resp.get("data", [])
 
     async def _request(
         self,

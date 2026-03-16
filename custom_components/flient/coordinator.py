@@ -26,33 +26,43 @@ class FlientCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
             update_interval=timedelta(seconds=SCAN_INTERVAL_SECONDS),
         )
         self.api = api
+        self._initial_load = True
 
     async def _async_update_data(self) -> dict[int, dict[str, Any]]:
-        """Fetch lock list from the API (no per-lock state calls)."""
+        """Fetch lock data. First call loads list, subsequent calls poll events."""
         try:
-            locks = await self.api.get_locks()
+            if self._initial_load or not self.data:
+                # First load: get lock list
+                locks = await self.api.get_locks()
+                lock_data: dict[int, dict[str, Any]] = {}
+                for lock in locks:
+                    lock_id = lock.get("lock_id")
+                    if lock_id is None:
+                        continue
+                    lock_data[lock_id] = lock
+                self._initial_load = False
+                return lock_data
+
+            # Subsequent calls: check for recent events
+            events = await self.api.get_events(since=SCAN_INTERVAL_SECONDS + 10)
+            if events:
+                for event in events:
+                    lock_id = event.get("lock_id")
+                    if lock_id and lock_id in self.data:
+                        event_type = event.get("event_type")
+                        if event_type == "lock":
+                            self.data[lock_id]["state"] = 0
+                        elif event_type == "unlock":
+                            self.data[lock_id]["state"] = 1
+                        self.data[lock_id]["last_method"] = event.get("method", "")
+                        self.data[lock_id]["last_event_time"] = event.get("timestamp", "")
+
+            return self.data
+
         except FlientAuthError as err:
             raise UpdateFailed(f"Authentication error: {err}") from err
         except FlientApiError as err:
             raise UpdateFailed(f"Error communicating with Flient API: {err}") from err
-
-        lock_data: dict[int, dict[str, Any]] = {}
-        for lock in locks:
-            lock_id = lock.get("lock_id")
-            if lock_id is None:
-                continue
-
-            # Preserve existing state data if we have it
-            existing = self.data.get(lock_id, {}) if self.data else {}
-            merged = {**lock}
-            if "state" in existing:
-                merged["state"] = existing["state"]
-            if "auto_lock_time" in existing:
-                merged["auto_lock_time"] = existing["auto_lock_time"]
-
-            lock_data[lock_id] = merged
-
-        return lock_data
 
     async def async_refresh_lock_state(self, lock_id: int) -> dict[str, Any]:
         """Fetch state for a single lock on demand."""
