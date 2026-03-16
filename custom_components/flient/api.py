@@ -96,6 +96,11 @@ class FlientApi:
             return False
         return True
 
+    async def register_webhook(self, webhook_url: str) -> bool:
+        """Register webhook URL with Flient backend."""
+        resp = await self._request("POST", "ha/webhook/register", data={"webhook_url": webhook_url})
+        return resp.get("status") == 1
+
     async def _request(
         self,
         method: str,
