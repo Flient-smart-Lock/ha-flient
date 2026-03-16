@@ -70,7 +70,7 @@ class FlientLock(CoordinatorEntity[FlientCoordinator], LockEntity):
         lock_data = self.coordinator.data.get(self._lock_id, {})
         state = lock_data.get("state")
         if state is not None:
-            # TT Lock: 0 = locked, 1 = unlocked, 2 = unknown
+            # Flient API: 0 = locked, 1 = unlocked, 2 = unknown
             if state == 2:
                 return None
             return state == 0
@@ -91,7 +91,7 @@ class FlientLock(CoordinatorEntity[FlientCoordinator], LockEntity):
         self._is_locking = True
         self.async_write_ha_state()
 
-        success = await self.coordinator.api.gateway_lock_unlock(
+        success = await self.coordinator.api.hub_lock_unlock(
             self._lock_id, "lock"
         )
 
@@ -107,7 +107,7 @@ class FlientLock(CoordinatorEntity[FlientCoordinator], LockEntity):
         self._is_unlocking = True
         self.async_write_ha_state()
 
-        success = await self.coordinator.api.gateway_lock_unlock(
+        success = await self.coordinator.api.hub_lock_unlock(
             self._lock_id, "unlock"
         )
 

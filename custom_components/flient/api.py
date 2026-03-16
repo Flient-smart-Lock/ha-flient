@@ -46,11 +46,11 @@ class FlientApi:
         return resp.get("data", [])
 
     async def lock(self, lock_id: int) -> bool:
-        """Lock via gateway."""
+        """Lock via hub."""
         return await self._lock_action(lock_id, "lock")
 
     async def unlock(self, lock_id: int) -> bool:
-        """Unlock via gateway."""
+        """Unlock via hub."""
         return await self._lock_action(lock_id, "unlock")
 
     async def get_lock_state(self, lock_id: int) -> dict[str, Any]:
@@ -67,7 +67,7 @@ class FlientApi:
 
         if resp.get("status") != 1:
             _LOGGER.error(
-                "Gateway %s failed for lock %s: %s",
+                "Hub %s failed for lock %s: %s",
                 action, lock_id, resp.get("message", "Unknown error"),
             )
             return False
