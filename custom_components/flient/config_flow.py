@@ -1,66 +1,100 @@
-"""Config flow for Flient Smart Lock using OAuth2."""
+"""Config flow for Flient Smart Lock."""
 from __future__ import annotations
 
 import logging
 from typing import Any
 
-from homeassistant.config_entries import ConfigFlowResult
-from homeassistant.helpers import config_entry_oauth2_flow
+import aiohttp
+import voluptuous as vol
 
-from .const import (
-    DOMAIN,
-    HA_CLIENT_ID,
-    HA_CLIENT_SECRET,
-    OAUTH2_AUTHORIZE,
-    OAUTH2_TOKEN,
-)
+from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
+
+from .const import API_BASE_URL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+STEP_USER_DATA_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_EMAIL): str,
+        vol.Required(CONF_PASSWORD): str,
+    }
+)
 
-class FlientOAuth2FlowHandler(
-    config_entry_oauth2_flow.AbstractOAuth2FlowHandler, domain=DOMAIN
-):
-    """Handle a config flow for Flient via OAuth2."""
 
-    DOMAIN = DOMAIN
+class FlientConfigFlow(ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for Flient."""
 
-    @property
-    def logger(self) -> logging.Logger:
-        """Return logger."""
-        return _LOGGER
+    VERSION = 1
 
-    @property
-    def extra_authorize_data(self) -> dict[str, Any]:
-        """Extra data to include in the authorize URL."""
-        return {"response_type": "code"}
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle the initial step."""
+        errors: dict[str, str] = {}
 
-    async def async_step_user(self, user_input=None):
-        """Handle a flow initialized by the user."""
-        # Ensure OAuth2 implementation is registered
-        config_entry_oauth2_flow.async_register_implementation(
-            self.hass,
-            DOMAIN,
-            config_entry_oauth2_flow.LocalOAuth2Implementation(
-                self.hass,
-                DOMAIN,
-                client_id=HA_CLIENT_ID,
-                client_secret=HA_CLIENT_SECRET,
-                authorize_url=OAUTH2_AUTHORIZE,
-                token_url=OAUTH2_TOKEN,
-            ),
+        if user_input is not None:
+            try:
+                user_data = await self._validate_credentials(
+                    user_input[CONF_EMAIL],
+                    user_input[CONF_PASSWORD],
+                )
+            except InvalidAuth:
+                errors["base"] = "invalid_auth"
+            except CannotConnect:
+                errors["base"] = "cannot_connect"
+            except Exception:
+                _LOGGER.exception("Unexpected exception")
+                errors["base"] = "unknown"
+            else:
+                user_id = user_data.get("user_id", user_input[CONF_EMAIL])
+                await self.async_set_unique_id(str(user_id))
+                self._abort_if_unique_id_configured()
+
+                return self.async_create_entry(
+                    title="Flient Smart Lock",
+                    data={
+                        CONF_EMAIL: user_input[CONF_EMAIL],
+                        CONF_PASSWORD: user_input[CONF_PASSWORD],
+                        "user_id": user_id,
+                    },
+                )
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=STEP_USER_DATA_SCHEMA,
+            errors=errors,
         )
-        return await super().async_step_user(user_input)
 
-    async def async_oauth_create_entry(self, data: dict[str, Any]) -> ConfigFlowResult:
-        """Create an entry for the flow."""
-        token = data.get("token", {})
-        user_id = token.get("user_id", "unknown")
+    async def _validate_credentials(self, email: str, password: str) -> dict:
+        """Validate the user credentials against Flient API."""
+        url = f"{API_BASE_URL}/ha/login"
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    url,
+                    json={"email": email, "password": password},
+                    timeout=aiohttp.ClientTimeout(total=15),
+                ) as resp:
+                    if resp.status == 401:
+                        raise InvalidAuth
+                    if resp.status != 200:
+                        raise CannotConnect
+                    data = await resp.json()
+                    if data.get("status") != 1:
+                        raise InvalidAuth
+                    return data.get("data", {})
+        except InvalidAuth:
+            raise
+        except CannotConnect:
+            raise
+        except aiohttp.ClientError as err:
+            raise CannotConnect from err
 
-        await self.async_set_unique_id(str(user_id))
-        self._abort_if_unique_id_configured()
 
-        return self.async_create_entry(
-            title="Flient Smart Lock",
-            data=data,
-        )
+class CannotConnect(Exception):
+    """Error to indicate we cannot connect."""
+
+
+class InvalidAuth(Exception):
+    """Error to indicate there is invalid auth."""

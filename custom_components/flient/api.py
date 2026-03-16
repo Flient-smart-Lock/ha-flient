@@ -1,12 +1,11 @@
 """Flient API client for Home Assistant."""
 from __future__ import annotations
 
+import hashlib
 import logging
 from typing import Any
 
 import aiohttp
-
-from homeassistant.helpers.config_entry_oauth2_flow import OAuth2Session
 
 from .const import API_BASE_URL
 
@@ -22,21 +21,45 @@ class FlientAuthError(FlientApiError):
 
 
 class FlientApi:
-    """Client for the Flient API using OAuth2 tokens."""
+    """Client for the Flient API using email/password auth."""
 
     def __init__(
         self,
         session: aiohttp.ClientSession,
-        oauth_session: OAuth2Session,
+        email: str,
+        password: str,
+        user_id: int | str | None = None,
     ) -> None:
         """Initialize the API client."""
         self._session = session
-        self._oauth_session = oauth_session
+        self._email = email
+        self._password = password
+        self._user_id = user_id
+        self._api_token: str | None = None
 
-    @property
-    def _token(self) -> str:
-        """Get the current access token."""
-        return self._oauth_session.token.get("access_token", "")
+    async def _ensure_authenticated(self) -> None:
+        """Authenticate if needed."""
+        if self._api_token is not None:
+            return
+
+        url = f"{API_BASE_URL}/ha/login"
+        try:
+            async with self._session.post(
+                url,
+                json={"email": self._email, "password": self._password},
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as resp:
+                if resp.status == 401:
+                    raise FlientAuthError("Invalid credentials")
+                resp.raise_for_status()
+                data = await resp.json()
+                if data.get("status") != 1:
+                    raise FlientAuthError(data.get("message", "Auth failed"))
+                auth_data = data.get("data", {})
+                self._api_token = auth_data.get("access_token")
+                self._user_id = auth_data.get("user_id", self._user_id)
+        except aiohttp.ClientError as err:
+            raise FlientApiError(f"Auth request failed: {err}") from err
 
     async def get_locks(self) -> list[dict[str, Any]]:
         """Get all locks for the user."""
@@ -80,14 +103,14 @@ class FlientApi:
         data: dict | None = None,
     ) -> dict[str, Any]:
         """Make an authenticated API request."""
-        # Ensure token is valid
-        await self._oauth_session.async_ensure_token_valid()
+        await self._ensure_authenticated()
 
         url = f"{API_BASE_URL}/{endpoint}"
         headers = {
             "Accept": "application/json",
-            "Authorization": f"Bearer {self._token}",
         }
+        if self._api_token:
+            headers["Authorization"] = f"Bearer {self._api_token}"
 
         try:
             kwargs: dict[str, Any] = {
@@ -99,6 +122,8 @@ class FlientApi:
 
             async with self._session.request(method, url, **kwargs) as resp:
                 if resp.status == 401:
+                    # Token expired, re-auth next time
+                    self._api_token = None
                     raise FlientAuthError("Authentication expired")
                 resp.raise_for_status()
                 return await resp.json()
