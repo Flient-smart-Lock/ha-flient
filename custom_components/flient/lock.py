@@ -1,6 +1,7 @@
 """Lock platform for Flient Smart Lock."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -120,7 +121,19 @@ class FlientLock(CoordinatorEntity[FlientCoordinator], LockEntity):
         self._is_unlocking = False
         if success:
             self._attr_is_locked = False
+            # Schedule re-lock based on auto_lock_time
+            lock_data = self.coordinator.data.get(self._lock_id, {})
+            auto_lock = lock_data.get("auto_lock_time", 0)
+            if auto_lock and auto_lock > 0:
+                self.hass.async_create_task(self._auto_lock_refresh(auto_lock + 2))
 
+        self.async_write_ha_state()
+        await self.coordinator.async_request_refresh()
+
+    async def _auto_lock_refresh(self, delay: int) -> None:
+        """Refresh state after auto-lock delay."""
+        await asyncio.sleep(delay)
+        self._attr_is_locked = True
         self.async_write_ha_state()
         await self.coordinator.async_request_refresh()
 
