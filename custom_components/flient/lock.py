@@ -120,18 +120,23 @@ class FlientLock(CoordinatorEntity[FlientCoordinator], LockEntity):
         self._is_unlocking = False
         if success:
             self._attr_is_locked = False
-            # Schedule re-lock based on auto_lock_time
-            lock_data = self.coordinator.data.get(self._lock_id, {})
-            auto_lock = lock_data.get("auto_lock_time", 0)
-            if auto_lock and auto_lock > 0:
-                self.hass.async_create_task(self._auto_lock_refresh(auto_lock + 2))
+            self.async_write_ha_state()
 
-        self.async_write_ha_state()
+            # Fetch fresh state to get auto_lock_time, then schedule re-lock
+            state = await self.coordinator.async_refresh_lock_state(self._lock_id)
+            auto_lock = state.get("auto_lock_time", 0)
+            if auto_lock and int(auto_lock) > 0:
+                _LOGGER.debug("Auto-lock in %s+2 seconds for lock %s", auto_lock, self._lock_id)
+                self.hass.async_create_task(self._auto_lock_refresh(int(auto_lock) + 2))
+        else:
+            self.async_write_ha_state()
 
     async def _auto_lock_refresh(self, delay: int) -> None:
         """Refresh state after auto-lock delay."""
         await asyncio.sleep(delay)
-        # Fetch real state from API
+        self._attr_is_locked = True
+        self.async_write_ha_state()
+        # Also verify with API
         await self.coordinator.async_refresh_lock_state(self._lock_id)
         self.async_write_ha_state()
 
