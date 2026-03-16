@@ -97,13 +97,6 @@ class FlientLock(CoordinatorEntity[FlientCoordinator], LockEntity):
         """Return true if the lock is unlocking."""
         return self._is_unlocking
 
-    async def async_added_to_hass(self) -> None:
-        """Fetch state when entity is added."""
-        await super().async_added_to_hass()
-        # Fetch state on demand when entity first loads
-        await self.coordinator.async_refresh_lock_state(self._lock_id)
-        self.async_write_ha_state()
-
     async def async_lock(self, **kwargs: Any) -> None:
         """Lock the device."""
         self._is_locking = True
