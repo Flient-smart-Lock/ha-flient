@@ -28,7 +28,7 @@ class FlientCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
         self.api = api
 
     async def _async_update_data(self) -> dict[int, dict[str, Any]]:
-        """Fetch lock data from the API."""
+        """Fetch lock list from the API (no per-lock state calls)."""
         try:
             locks = await self.api.get_locks()
         except FlientAuthError as err:
@@ -42,12 +42,25 @@ class FlientCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
             if lock_id is None:
                 continue
 
-            # Get state + battery
-            try:
-                state = await self.api.get_lock_state(lock_id)
-            except FlientApiError:
-                state = {}
+            # Preserve existing state data if we have it
+            existing = self.data.get(lock_id, {}) if self.data else {}
+            merged = {**lock}
+            if "state" in existing:
+                merged["state"] = existing["state"]
+            if "auto_lock_time" in existing:
+                merged["auto_lock_time"] = existing["auto_lock_time"]
 
-            lock_data[lock_id] = {**lock, **state}
+            lock_data[lock_id] = merged
 
         return lock_data
+
+    async def async_refresh_lock_state(self, lock_id: int) -> dict[str, Any]:
+        """Fetch state for a single lock on demand."""
+        try:
+            state = await self.api.get_lock_state(lock_id)
+            if self.data and lock_id in self.data:
+                self.data[lock_id].update(state)
+            return state
+        except FlientApiError as err:
+            _LOGGER.warning("Failed to get state for lock %s: %s", lock_id, err)
+            return {}

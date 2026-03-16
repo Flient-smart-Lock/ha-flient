@@ -97,6 +97,13 @@ class FlientLock(CoordinatorEntity[FlientCoordinator], LockEntity):
         """Return true if the lock is unlocking."""
         return self._is_unlocking
 
+    async def async_added_to_hass(self) -> None:
+        """Fetch state when entity is added."""
+        await super().async_added_to_hass()
+        # Fetch state on demand when entity first loads
+        await self.coordinator.async_refresh_lock_state(self._lock_id)
+        self.async_write_ha_state()
+
     async def async_lock(self, **kwargs: Any) -> None:
         """Lock the device."""
         self._is_locking = True
@@ -109,7 +116,6 @@ class FlientLock(CoordinatorEntity[FlientCoordinator], LockEntity):
             self._attr_is_locked = True
 
         self.async_write_ha_state()
-        await self.coordinator.async_request_refresh()
 
     async def async_unlock(self, **kwargs: Any) -> None:
         """Unlock the device."""
@@ -128,14 +134,13 @@ class FlientLock(CoordinatorEntity[FlientCoordinator], LockEntity):
                 self.hass.async_create_task(self._auto_lock_refresh(auto_lock + 2))
 
         self.async_write_ha_state()
-        await self.coordinator.async_request_refresh()
 
     async def _auto_lock_refresh(self, delay: int) -> None:
         """Refresh state after auto-lock delay."""
         await asyncio.sleep(delay)
-        self._attr_is_locked = True
+        # Fetch real state from API
+        await self.coordinator.async_refresh_lock_state(self._lock_id)
         self.async_write_ha_state()
-        await self.coordinator.async_request_refresh()
 
     @callback
     def _handle_coordinator_update(self) -> None:
