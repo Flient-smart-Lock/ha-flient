@@ -1,28 +1,22 @@
 {
   "config": {
     "step": {
-      "pick_implementation": {
-        "title": "Flient Smart Lock"
+      "user": {
+        "title": "Flient Smart Lock",
+        "description": "Log in met je Flient account.",
+        "data": {
+          "email": "E-mailadres",
+          "password": "Wachtwoord"
+        }
       }
     },
     "error": {
       "cannot_connect": "Kan geen verbinding maken met Flient",
-      "invalid_auth": "Authenticatie mislukt",
+      "invalid_auth": "Ongeldig e-mailadres of wachtwoord",
       "unknown": "Onbekende fout"
     },
     "abort": {
-      "already_configured": "Dit account is al geconfigureerd",
-      "authorize_url_timeout": "Timeout bij het genereren van de autorisatie-URL",
-      "missing_configuration": "Flient-integratie is niet geconfigureerd",
-      "no_url_available": "Geen URL beschikbaar. Controleer je Home Assistant-configuratie",
-      "oauth_error": "Onverwachte fout bij het ontvangen van het token",
-      "oauth_failed": "Fout bij het ophalen van het toegangstoken",
-      "oauth_timeout": "Timeout bij het ophalen van het toegangstoken",
-      "oauth_unauthorized": "Autorisatiefout bij het ophalen van het toegangstoken",
-      "reauth_successful": "Herauthenticatie geslaagd"
-    },
-    "create_entry": {
-      "default": "Succesvol geauthenticeerd met Flient"
+      "already_configured": "Dit account is al geconfigureerd"
     }
   }
 }
